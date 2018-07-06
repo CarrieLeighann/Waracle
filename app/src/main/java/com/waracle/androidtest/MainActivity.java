@@ -48,6 +48,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
@@ -83,14 +84,20 @@ public class MainActivity extends AppCompatActivity {
 
         private ListView mListView;
         private MyAdapter mAdapter;
+        private int list_pos;
 
-        public PlaceholderFragment() { /**/ }
+        public PlaceholderFragment() {
+        }
 
         @Override
         public View onCreateView(LayoutInflater inflater, ViewGroup container,
                                  Bundle savedInstanceState) {
-            View rootView = inflater.inflate(R.layout.fragment_main, container, false);
-            return rootView;
+
+            if (savedInstanceState != null){
+                this.list_pos = savedInstanceState.getInt("LIST_POS");
+            }
+
+            return inflater.inflate(R.layout.fragment_main, container, false);
         }
 
         @Override
@@ -101,7 +108,7 @@ public class MainActivity extends AppCompatActivity {
             mAdapter = new MyAdapter();
             mListView = getListView();
             mListView.setAdapter(mAdapter);
-
+            Log.d("LIST_POS_1", String.valueOf(this.list_pos));
             // Load data from net.
             URL url = null;
             try {
@@ -111,11 +118,27 @@ public class MainActivity extends AppCompatActivity {
                 e.printStackTrace();
             }
 
-
         }
 
+        public int getListPos(){
+           return mListView.getFirstVisiblePosition();
+          // Log.d("LIST_POS_2", String.valueOf(this.list_pos));
+        }
+
+
+        //saves the user's position on the list when orientation is flipped and the fragment redrawn
+        @Override
+        public void onSaveInstanceState(Bundle savedState) {
+
+            super.onSaveInstanceState(savedState);
+
+            savedState.putInt("LIST_POS",  getListPos());
+        }
+
+
+
         // short network operations should be run in an AsyncTask or other thread so as not to block the UI thread
-        private class loadData extends AsyncTask<URL, String, String> {
+        private  class loadData extends AsyncTask<URL, String, String> {
 
             @Override
             protected String doInBackground(URL...params) {
@@ -127,6 +150,8 @@ public class MainActivity extends AppCompatActivity {
                 HttpURLConnection urlConnection = null;
                 try {
                     urlConnection = (HttpURLConnection) url.openConnection();
+
+                     urlConnection.setUseCaches(true);
                 } catch (IOException e) {
                     e.printStackTrace();
                     return null;
@@ -150,10 +175,8 @@ public class MainActivity extends AppCompatActivity {
                         }catch (IOException e){
                             e.printStackTrace();
                         } finally {
-                            if (in != null) {
-                                in.close();
-                            }
 
+                            StreamUtils.close(in);
                             urlConnection.disconnect();
                         }
 
@@ -176,6 +199,7 @@ public class MainActivity extends AppCompatActivity {
                     mAdapter.setItems(array);
                     mListView = getListView();
                     mListView.setAdapter(mAdapter);
+                    mListView.setSelectionFromTop(list_pos, 0);
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
@@ -228,11 +252,20 @@ public class MainActivity extends AppCompatActivity {
             return "UTF-8";
         }*/
 
+
+
         private class MyAdapter extends BaseAdapter {
 
             // Can you think of a better way to represent these items???
             private JSONArray mItems;
             private ImageLoader mImageLoader;
+
+
+            class ViewHolder {
+                TextView title;
+                TextView desc;
+                ImageView image;
+            }
 
             public MyAdapter() {
                 this(new JSONArray());
@@ -263,20 +296,21 @@ public class MainActivity extends AppCompatActivity {
                 return 0;
             }
 
-            @SuppressLint("ViewHolder")
+        //    @SuppressLint("ViewHolder")
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
                 LayoutInflater inflater = LayoutInflater.from(getActivity());
                 View root = inflater.inflate(R.layout.list_item_layout, parent, false);
                 if (root != null) {
-                    TextView title = (TextView) root.findViewById(R.id.title);
-                    TextView desc = (TextView) root.findViewById(R.id.desc);
-                    ImageView image = (ImageView) root.findViewById(R.id.image);
+                    ViewHolder holder = new ViewHolder();
+                    holder.title = (TextView) root.findViewById(R.id.title);
+                    holder.desc = (TextView) root.findViewById(R.id.desc);
+                    holder.image = (ImageView) root.findViewById(R.id.image);
                     try {
                         JSONObject object = (JSONObject) getItem(position);
-                        title.setText(object.getString("title"));
-                        desc.setText(object.getString("desc"));
-                        mImageLoader.load(object.getString("image"), image);
+                        holder.title.setText(object.getString("title"));
+                        holder.desc.setText(object.getString("desc"));
+                        mImageLoader.load(object.getString("image"), holder.image);
                     } catch (JSONException e) {
                         e.printStackTrace();
                     }
@@ -289,5 +323,10 @@ public class MainActivity extends AppCompatActivity {
                 mItems = items;
             }
         }
+
     }
+
+
+
+
 }

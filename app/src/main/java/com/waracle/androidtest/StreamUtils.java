@@ -14,7 +14,7 @@ public class StreamUtils {
     private static final String TAG = StreamUtils.class.getSimpleName();
 
     // Can you see what's wrong with this???
-    public static byte[] readUnknownFully(InputStream stream) throws IOException {
+ /*   public static byte[] readUnknownFully(InputStream stream) throws IOException {
         // Read in stream of bytes
         ArrayList<Byte> data = new ArrayList<>();
         while (true) {
@@ -33,7 +33,7 @@ public class StreamUtils {
 
         // Return the raw byte array.
         return bytes;
-    }
+    }*/
 
     public static void close(Closeable closeable) {
         if (closeable != null) {
@@ -44,4 +44,6 @@ public class StreamUtils {
             }
         }
     }
+
+
 }

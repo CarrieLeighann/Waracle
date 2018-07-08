@@ -11,6 +11,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Adapter;
 import android.widget.BaseAdapter;
 import android.widget.ImageView;
 import android.widget.ListView;
@@ -93,6 +94,7 @@ public class MainActivity extends AppCompatActivity {
         public View onCreateView(LayoutInflater inflater, ViewGroup container,
                                  Bundle savedInstanceState) {
 
+            //If applicable, receive the list position the user was at before rotating the screen
             if (savedInstanceState != null){
                 this.list_pos = savedInstanceState.getInt("LIST_POS");
             }
@@ -108,7 +110,7 @@ public class MainActivity extends AppCompatActivity {
             mAdapter = new MyAdapter();
             mListView = getListView();
             mListView.setAdapter(mAdapter);
-            Log.d("LIST_POS_1", String.valueOf(this.list_pos));
+
             // Load data from net.
             URL url = null;
             try {
@@ -122,9 +124,7 @@ public class MainActivity extends AppCompatActivity {
 
         public int getListPos(){
            return mListView.getFirstVisiblePosition();
-          // Log.d("LIST_POS_2", String.valueOf(this.list_pos));
         }
-
 
         //saves the user's position on the list when orientation is flipped and the fragment redrawn
         @Override
@@ -136,9 +136,8 @@ public class MainActivity extends AppCompatActivity {
         }
 
 
-
         // short network operations should be run in an AsyncTask or other thread so as not to block the UI thread
-        private  class loadData extends AsyncTask<URL, String, String> {
+        private class loadData extends AsyncTask<URL, String, String> {
 
             @Override
             protected String doInBackground(URL...params) {
@@ -151,7 +150,6 @@ public class MainActivity extends AppCompatActivity {
                 try {
                     urlConnection = (HttpURLConnection) url.openConnection();
 
-                     urlConnection.setUseCaches(true);
                 } catch (IOException e) {
                     e.printStackTrace();
                     return null;
@@ -181,6 +179,9 @@ public class MainActivity extends AppCompatActivity {
                         }
 
                         return data;
+
+                        //anything other than a 200 response code will cause an error and the cake information will not be downloaded
+                        //TODO: error handling and something to show the user that there has been a network error eg. toast message or dialog
                     } else {
                         return null;
                     }
@@ -194,6 +195,8 @@ public class MainActivity extends AppCompatActivity {
             protected void onPostExecute(String s) {
                 super.onPostExecute(s);
                 JSONArray array = null;
+
+                //once the data has been received by the app it can then be added to the listview
                 try {
                     array = new JSONArray(s);
                     mAdapter.setItems(array);
@@ -207,65 +210,19 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-    /*    private JSONArray loadData() throws IOException, JSONException {
-            URL url = new URL(JSON_URL);
-            HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
-            try {
-                InputStream in = new BufferedInputStream(urlConnection.getInputStream());
-
-                // Can you think of a way to improve the performance of loading data
-                // using HTTP headers???
-
-                // Also, Do you trust any utils thrown your way????
-
-                byte[] bytes = StreamUtils.readUnknownFully(in);
-
-                // Read in charset of HTTP content.
-                String charset = parseCharset(urlConnection.getRequestProperty("Content-Type"));
-
-                // Convert byte array to appropriate encoded string.
-                String jsonText = new String(bytes, charset);
-
-                // Read string as JSON.
-                return new JSONArray(jsonText);
-            } finally {
-                urlConnection.disconnect();
-            }
-        }
-
-        *//**
-         * Returns the charset specified in the Content-Type of this header,
-         * or the HTTP default (ISO-8859-1) if none can be found.
-         *//*
-        public static String parseCharset(String contentType) {
-            if (contentType != null) {
-                String[] params = contentType.split(",");
-                for (int i = 1; i < params.length; i++) {
-                    String[] pair = params[i].trim().split("=");
-                    if (pair.length == 2) {
-                        if (pair[0].equals("charset")) {
-                            return pair[1];
-                        }
-                    }
-                }
-            }
-            return "UTF-8";
-        }*/
-
-
-
         private class MyAdapter extends BaseAdapter {
 
             // Can you think of a better way to represent these items???
             private JSONArray mItems;
             private ImageLoader mImageLoader;
 
-
+        /*    //Using the ViewHolder means that the system doesn't have to repeatedly call "findViewById"
+            //which will make loading the listview faster
             class ViewHolder {
                 TextView title;
                 TextView desc;
                 ImageView image;
-            }
+            }*/
 
             public MyAdapter() {
                 this(new JSONArray());
@@ -296,27 +253,31 @@ public class MainActivity extends AppCompatActivity {
                 return 0;
             }
 
-        //    @SuppressLint("ViewHolder")
-            @Override
+
+
             public View getView(int position, View convertView, ViewGroup parent) {
                 LayoutInflater inflater = LayoutInflater.from(getActivity());
-                View root = inflater.inflate(R.layout.list_item_layout, parent, false);
-                if (root != null) {
-                    ViewHolder holder = new ViewHolder();
-                    holder.title = (TextView) root.findViewById(R.id.title);
-                    holder.desc = (TextView) root.findViewById(R.id.desc);
-                    holder.image = (ImageView) root.findViewById(R.id.image);
+
+                convertView = inflater.inflate(R.layout.list_item_layout, parent, false);
+                if (convertView != null) {
+                    TextView title = (TextView) convertView.findViewById(R.id.title);
+                    TextView desc = (TextView) convertView.findViewById(R.id.desc);
+                    ImageView image = (ImageView) convertView.findViewById(R.id.image);
+
+
                     try {
                         JSONObject object = (JSONObject) getItem(position);
-                        holder.title.setText(object.getString("title"));
-                        holder.desc.setText(object.getString("desc"));
-                        mImageLoader.load(object.getString("image"), holder.image);
+                        title.setText(object.getString("title"));
+                        desc.setText(object.getString("desc"));
+                        mImageLoader.load(object.getString("image"), image);
+
                     } catch (JSONException e) {
                         e.printStackTrace();
                     }
                 }
 
-                return root;
+                    return convertView;
+
             }
 
             public void setItems(JSONArray items) {
@@ -324,9 +285,94 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
+
+
+        //Had intended to implement ViewHolder pattern, however it was causing list rows
+        // to be recycled and show old images before new ones were loaded
+
+       /* //    @SuppressLint("ViewHolder")
+          //  @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                LayoutInflater inflater = LayoutInflater.from(getActivity());
+
+                ViewHolder holder;
+                if (convertView == null) {
+                    convertView = inflater.inflate(R.layout.list_item_layout, parent, false);
+                    holder = new ViewHolder();
+                    holder.title = (TextView) convertView.findViewById(R.id.title);
+                    holder.desc = (TextView) convertView.findViewById(R.id.desc);
+                    holder.image = (ImageView) convertView.findViewById(R.id.image);
+                    convertView.setTag(holder);
+
+
+                }else {
+                    holder = (ViewHolder) convertView.getTag();
+
+                    //listview will recycle old image into incorrect row while new image is loading, so the imageView is made transparent until it is loaded
+                    holder.image.setImageDrawable(getResources().getDrawable(android.R.color.transparent));
+                }
+
+                try {
+                    JSONObject object = (JSONObject) getItem(position);
+                    holder.title.setText(object.getString("title"));
+                    holder.desc.setText(object.getString("desc"));
+                    mImageLoader.load(object.getString("image"), holder.image);
+
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+
+                return convertView;
+            }*/
+
     }
 
 
+    /*    private JSONArray loadData() throws IOException, JSONException {
+            URL url = new URL(JSON_URL);
+            HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+            try {
+                InputStream in = new BufferedInputStream(urlConnection.getInputStream());
+
+                // Can you think of a way to improve the performance of loading data
+                // using HTTP headers???
+
+                // Also, Do you trust any utils thrown your way????
+
+                byte[] bytes = StreamUtils.readUnknownFully(in);
+
+                // Read in charset of HTTP content.
+                String charset = parseCharset(urlConnection.getRequestProperty("Content-Type"));
+
+                // Convert byte array to appropriate encoded string.
+                String jsonText = new String(bytes, charset);
+
+                // Read string as JSON.
+                return new JSONArray(jsonText);
+            } finally {
+                urlConnection.disconnect();
+            }
+        }
+
+     * Returns the charset specified in the Content-Type of this header,
+     * or the HTTP default (ISO-8859-1) if none can be found.
+     *//*
+        public static String parseCharset(String contentType) {
+            if (contentType != null) {
+                String[] params = contentType.split(",");
+                for (int i = 1; i < params.length; i++) {
+                    String[] pair = params[i].trim().split("=");
+                    if (pair.length == 2) {
+                        if (pair[0].equals("charset")) {
+                            return pair[1];
+                        }
+                    }
+                }
+            }
+            return "UTF-8";
+        }*/
 
 
 }
+
+
